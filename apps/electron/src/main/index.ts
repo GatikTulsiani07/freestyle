@@ -105,7 +105,8 @@ import {
   type DictationPermission,
   missingDictationPermission,
   resolveAccessibilityPermission,
-  shouldWarnAboutAccessibilityAtStartup,
+  type StartupPermissionWarning,
+  startupPermissionWarning,
 } from "./permission-checks";
 import {
   FreestyleEventType,
@@ -1574,15 +1575,18 @@ function hasCurrentAccessibilityPermission(): boolean {
 }
 
 function getMissingDictationPermission(): DictationPermission | null {
-  const microphoneStatus =
-    process.platform === "linux"
-      ? "unknown"
-      : systemPreferences.getMediaAccessStatus("microphone");
+  const microphoneStatus = getCurrentMicrophonePermission();
   return missingDictationPermission(
     process.platform,
     hasCurrentAccessibilityPermission(),
     microphoneStatus,
   );
+}
+
+function getCurrentMicrophonePermission(): string {
+  return process.platform === "darwin" || process.platform === "win32"
+    ? systemPreferences.getMediaAccessStatus("microphone")
+    : "unknown";
 }
 
 function openAccessibilitySettings(): void {
@@ -1604,34 +1608,45 @@ function openMicrophoneSettings(): void {
 let permissionDialogPromise: Promise<void> | null = null;
 
 function showRequiredPermissionDialog(
-  permission: DictationPermission,
+  permission: StartupPermissionWarning,
 ): Promise<void> {
   if (permissionDialogPromise) return permissionDialogPromise;
 
   const accessibility = permission === "accessibility";
+  const both = permission === "accessibility-and-microphone";
   permissionDialogPromise = dialog
     .showMessageBox({
       type: "error",
-      title: accessibility
-        ? "Accessibility Permission Required"
-        : "Microphone Permission Required",
-      message: accessibility
-        ? "Accessibility permission is required for dictation and text insertion."
-        : "Microphone permission is required for dictation.",
-      detail: accessibility
-        ? "Enable Freestyle in System Settings > Privacy & Security > Accessibility."
-        : process.platform === "darwin"
-          ? "Enable Freestyle in System Settings > Privacy & Security > Microphone."
-          : "Enable microphone access for Freestyle in Windows Settings.",
-      buttons: ["Open System Settings", "Cancel"],
+      title: both
+        ? "Permissions Required"
+        : accessibility
+          ? "Accessibility Permission Required"
+          : "Microphone Permission Required",
+      message: both
+        ? "Accessibility and Microphone permissions are required before dictation can work."
+        : accessibility
+          ? "Accessibility permission is required for dictation and text insertion."
+          : "Microphone access is required to record dictation.",
+      detail: both
+        ? "Enable Freestyle in System Settings > Privacy & Security under Accessibility and Microphone."
+        : accessibility
+          ? "Enable Freestyle in System Settings > Privacy & Security > Accessibility."
+          : process.platform === "darwin"
+            ? "Enable Freestyle in System Settings > Privacy & Security > Microphone."
+            : "Enable microphone access for Freestyle in Windows Settings.",
+      buttons: both
+        ? ["Open Accessibility Settings", "Open Microphone Settings", "Not Now"]
+        : ["Open System Settings", "Cancel"],
       defaultId: 0,
-      cancelId: 1,
+      cancelId: both ? 2 : 1,
     })
     .then(({ response }) => {
-      if (response !== 0) return;
-      if (accessibility) {
+      if (both) {
+        if (response === 0) openAccessibilitySettings();
+        if (response === 1) openMicrophoneSettings();
+      } else if (response === 0 && accessibility) {
         openAccessibilitySettings();
-      } else {
+      } else if (response === 0) {
         openMicrophoneSettings();
       }
     })
@@ -2319,14 +2334,14 @@ app.whenReady().then(async () => {
   // Onboarding already has dedicated permission cards. Existing users instead
   // get one actionable warning once a user-facing window can be shown.
   void isOnboardingActive().then((onboardingActive) => {
-    if (
-      shouldWarnAboutAccessibilityAtStartup(
-        process.platform,
-        onboardingActive,
-        hasCurrentAccessibilityPermission(),
-      )
-    ) {
-      void showRequiredPermissionDialog("accessibility");
+    const warning = startupPermissionWarning(
+      process.platform,
+      onboardingActive,
+      hasCurrentAccessibilityPermission(),
+      getCurrentMicrophonePermission(),
+    );
+    if (warning) {
+      void showRequiredPermissionDialog(warning);
     }
   });
 
