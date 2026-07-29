@@ -75,6 +75,15 @@ global.fetch = async (input, init) => {
       record({ type: "pipeline-event", body: JSON.parse(body) });
     }
   }
+  if (
+    process.env.FREESTYLE_E2E_ONBOARDING_COMPLETE === "false" &&
+    url.endsWith("/api/models/configured")
+  ) {
+    return new Response("[]", {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   return originalFetch(input, init);
 };
 

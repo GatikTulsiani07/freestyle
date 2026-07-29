@@ -30,7 +30,7 @@ interface RecordedEvent {
 interface LaunchOptions {
   accessibility: "granted" | "denied";
   microphone?: "granted" | "denied" | "restricted" | "not-determined";
-  onboardingComplete?: boolean;
+  onboardingComplete: boolean;
   dialogResponse?: number;
 }
 
@@ -66,12 +66,10 @@ async function launchPermissionApp(
   const userDataDir = join(testDir, "user-data");
   const eventsPath = join(testDir, "events.jsonl");
   mkdirSync(userDataDir, { recursive: true });
-  if (options.onboardingComplete) {
-    writeFileSync(
-      join(userDataDir, "settings.json"),
-      JSON.stringify({ onboardingComplete: true }),
-    );
-  }
+  writeFileSync(
+    join(userDataDir, "settings.json"),
+    JSON.stringify({ onboardingComplete: options.onboardingComplete }),
+  );
 
   const app = await electron.launch({
     args: [
@@ -86,6 +84,7 @@ async function launchPermissionApp(
       FREESTYLE_E2E_ACCESSIBILITY: options.accessibility,
       FREESTYLE_E2E_MICROPHONE: options.microphone ?? "granted",
       FREESTYLE_E2E_DIALOG_RESPONSE: String(options.dialogResponse ?? 1),
+      FREESTYLE_E2E_ONBOARDING_COMPLETE: String(options.onboardingComplete),
       FREESTYLE_E2E_PERMISSION_EVENTS: eventsPath,
       FREESTYLE_E2E_USER_DATA_DIR: userDataDir,
       ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
@@ -193,6 +192,7 @@ test("onboarding does not receive a duplicate startup warning", async () => {
   const launched = await launchPermissionApp({
     accessibility: "denied",
     microphone: "denied",
+    onboardingComplete: false,
   });
   try {
     await expect.poll(() => launched.dashboard.url()).toContain("/onboarding");
