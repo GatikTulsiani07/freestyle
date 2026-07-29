@@ -15,6 +15,11 @@ import {
 } from "@playwright/test";
 import { _electron as electron } from "playwright";
 
+test.skip(
+  process.platform !== "darwin",
+  "Permission flow integration tests require macOS permission APIs.",
+);
+
 interface RecordedEvent {
   type: string;
   options?: {
