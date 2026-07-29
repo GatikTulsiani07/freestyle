@@ -1,4 +1,5 @@
 export const SETTINGS_KEYS = {
+  advancedMode: "advanced_mode",
   cleanupAppAssignments: "cleanup_app_assignments",
   cleanupCustomPrompt: "cleanup_custom_prompt",
   cleanupEmailTone: "cleanup_email_tone",
@@ -23,6 +24,7 @@ export const SETTINGS_KEYS = {
   openaiSttApiKey: "openai_stt_api_key",
   openaiSttBaseUrl: "openai_stt_base_url",
   outputMode: "output_mode",
+  pillCancelButton: "pill_cancel_button",
   soundEnabled: "sound_enabled",
   theme: "theme",
 } as const;

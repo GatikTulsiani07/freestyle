@@ -1,3 +1,4 @@
+import { Badge } from "@renderer/components/ui/badge";
 import { Button } from "@renderer/components/ui/button";
 import {
   DropdownMenu,
@@ -6,15 +7,68 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@renderer/components/ui/dropdown-menu";
+import { Progress } from "@renderer/components/ui/progress";
+import { useUpgradeModal } from "@renderer/components/upgrade-modal";
 import { useCloudAuth } from "@renderer/lib/auth-context";
+import { LINKS } from "@renderer/lib/links";
+import { usagePercent, useCloudUsage } from "@renderer/lib/use-cloud-usage";
 import { cn } from "@renderer/lib/utils";
-import { ChevronsUpDown, Cloud, Loader2, LogIn, LogOut } from "lucide-react";
+import {
+  ChevronsUpDown,
+  CircleHelp,
+  Cloud,
+  CreditCard,
+  Loader2,
+  LogIn,
+  LogOut,
+  Settings,
+} from "lucide-react";
+import { useNavigate } from "react-router";
 
 const ROW =
   "flex w-full items-center gap-2.5 rounded-[7px] border border-transparent px-2.5 py-1.5 text-[13px] transition-colors";
 
+export function UpgradeCtaCard(): React.JSX.Element | null {
+  const { user } = useCloudAuth();
+  const { balance, isPro } = useCloudUsage(!!user);
+  const { openUpgradeModal } = useUpgradeModal();
+
+  if (!user || isPro || !balance) return null;
+
+  const pct = usagePercent(balance);
+
+  return (
+    <div
+      className="glass-card mx-3 mt-2 rounded-[10px] border p-3"
+      style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+    >
+      <div className="text-foreground text-[12px] font-medium">
+        {balance.remaining.toLocaleString()}
+        <span className="text-muted-foreground font-normal">
+          {" "}
+          / {balance.limit.toLocaleString()}
+        </span>{" "}
+        words left
+      </div>
+      <Progress value={pct} className="mt-1.5 h-1.5" />
+      <p className="text-muted-foreground mt-2.5 text-[11px] leading-snug">
+        Currently on a free plan, upgrade to Pro for unlimited dictation.
+      </p>
+      <Button
+        size="sm"
+        onClick={() => openUpgradeModal()}
+        className="mt-2.5 w-full"
+      >
+        Upgrade to Pro
+      </Button>
+    </div>
+  );
+}
+
 export function CloudProfileButton(): React.JSX.Element {
   const { user, loading, signingIn, signIn, signOut } = useCloudAuth();
+  const { isPro, openBillingPortal } = useCloudUsage(!!user);
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -66,7 +120,7 @@ export function CloudProfileButton(): React.JSX.Element {
           type="button"
           className={cn(
             ROW,
-            "text-foreground hover:bg-card/50 data-[state=open]:bg-card data-[state=open]:border-border",
+            "text-foreground hover:bg-card/50 cursor-pointer data-[state=open]:bg-card data-[state=open]:border-border",
           )}
         >
           {user.image ? (
@@ -77,14 +131,20 @@ export function CloudProfileButton(): React.JSX.Element {
             />
           ) : null}
           <span className="min-w-0 flex-1 text-left leading-tight">
-            <span className="text-foreground block truncate font-medium">
+            <span className="text-foreground block min-w-0 truncate font-medium">
               {user.name || user.email}
             </span>
-            {user.name ? (
-              <span className="text-muted-foreground block truncate text-[11px]">
-                {user.email}
-              </span>
-            ) : null}
+            <span className="mt-0.5 flex items-center gap-1.5">
+              {isPro ? (
+                <Badge className="mono h-4 shrink-0 px-1.5 text-[9px] uppercase tracking-[0.12em]">
+                  Pro
+                </Badge>
+              ) : (
+                <span className="text-muted-foreground min-w-0 truncate text-[11px]">
+                  Free plan
+                </span>
+              )}
+            </span>
           </span>
           <ChevronsUpDown className="text-muted-foreground size-3.5 shrink-0" />
         </button>
@@ -95,14 +155,43 @@ export function CloudProfileButton(): React.JSX.Element {
         sideOffset={6}
         className="w-[200px]"
       >
-        <div className="px-1.5 py-1">
-          <div className="text-foreground truncate text-[13px] font-medium">
-            {user.name || user.email}
+        <div className="flex items-center gap-1.5 px-1.5 py-1">
+          <div className="min-w-0 flex-1">
+            <div className="text-foreground truncate text-[13px] font-medium">
+              {user.name || user.email}
+            </div>
+            <div className="text-muted-foreground truncate text-[11px]">
+              {user.email}
+            </div>
           </div>
-          <div className="text-muted-foreground truncate text-[11px]">
-            {user.email}
-          </div>
+          <button
+            type="button"
+            aria-label="Manage profile"
+            title="Manage profile"
+            onClick={() => void window.api.openExternal(LINKS.cloudProfile)}
+            className="text-muted-foreground hover:text-foreground hover:bg-card focus-visible:ring-ring flex size-6 shrink-0 items-center justify-center rounded-[6px] transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          >
+            <Settings className="size-3.5" />
+          </button>
         </div>
+        <DropdownMenuSeparator />
+        {isPro ? (
+          <>
+            <DropdownMenuItem onSelect={() => void openBillingPortal()}>
+              <CreditCard />
+              Manage subscription
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
+        <DropdownMenuItem onSelect={() => navigate("/settings")}>
+          <Settings />
+          Settings
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate("/help")}>
+          <CircleHelp />
+          Help
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={() => void signOut()}>
           <LogOut />

@@ -11,6 +11,10 @@ import type {
 } from "../shared/hotkey-bindings";
 import { getDefaultHotkey } from "../shared/hotkey-defaults";
 import type { OpenAppCandidate } from "../shared/open-apps";
+import {
+  normalizePillCancelMode,
+  type PillCancelMode,
+} from "../shared/pill-cancel";
 import type { PluginViewBounds } from "../shared/plugins";
 
 // Custom APIs for renderer
@@ -39,6 +43,10 @@ const api = {
   ): Promise<SetHotkeyBindingResult> =>
     ipcRenderer.invoke("hotkey:set-binding", kind, accelerator),
   hidePill: (): void => ipcRenderer.send("pill:hide"),
+  // Ask the pill window to grow around the capsule (or shrink back) so the
+  // expanded status card has somewhere to render.
+  setPillExpanded: (expanded: boolean): void =>
+    ipcRenderer.send("pill:set-expanded", expanded),
   showErrorDialog: (title: string, message: string): Promise<void> =>
     ipcRenderer.invoke("dialog:show-error", title, message),
   getServerPort: (): Promise<number> => ipcRenderer.invoke("server:port"),
@@ -61,6 +69,8 @@ const api = {
     ipcRenderer.invoke("open:external", url),
   cloudPromptSignIn: (): Promise<boolean> =>
     ipcRenderer.invoke("cloud:prompt-sign-in"),
+  cloudPromptUpgrade: (): Promise<boolean> =>
+    ipcRenderer.invoke("cloud:prompt-upgrade"),
   onHotkeyDown: (callback: () => void): (() => void) => {
     const handler = (): void => callback();
     ipcRenderer.on("hotkey:down", handler);
@@ -239,6 +249,18 @@ const api = {
     return () =>
       ipcRenderer.removeListener("settings:output-mode-changed", handler);
   },
+  // Pill cancel button
+  sendPillCancelModeChanged: (mode: PillCancelMode): void =>
+    ipcRenderer.send("settings:pill-cancel-mode-changed", mode),
+  onPillCancelModeChanged: (
+    callback: (mode: PillCancelMode) => void,
+  ): (() => void) => {
+    const handler = (_: unknown, mode: unknown): void =>
+      callback(normalizePillCancelMode(mode));
+    ipcRenderer.on("settings:pill-cancel-mode-changed", handler);
+    return () =>
+      ipcRenderer.removeListener("settings:pill-cancel-mode-changed", handler);
+  },
   sendAudioDuckingChanged: (enabled: boolean): void =>
     ipcRenderer.send("settings:audio-ducking-changed", enabled),
   onAudioDuckingChanged: (
@@ -248,16 +270,6 @@ const api = {
     ipcRenderer.on("settings:audio-ducking-changed", handler);
     return () =>
       ipcRenderer.removeListener("settings:audio-ducking-changed", handler);
-  },
-  sendStreamingAudioChanged: (enabled: boolean): void =>
-    ipcRenderer.send("settings:streaming-audio-changed", enabled),
-  onStreamingAudioChanged: (
-    callback: (enabled: boolean) => void,
-  ): (() => void) => {
-    const handler = (_: unknown, enabled: boolean): void => callback(enabled);
-    ipcRenderer.on("settings:streaming-audio-changed", handler);
-    return () =>
-      ipcRenderer.removeListener("settings:streaming-audio-changed", handler);
   },
   sendAudioPlaybackModeChanged: (mode: AudioPlaybackMode): void =>
     ipcRenderer.send("settings:audio-playback-mode-changed", mode),

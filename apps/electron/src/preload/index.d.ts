@@ -9,6 +9,7 @@ import type {
   SetHotkeyBindingResult,
 } from "../shared/hotkey-bindings";
 import type { OpenAppCandidate } from "../shared/open-apps";
+import type { PillCancelMode } from "../shared/pill-cancel";
 import type { PluginViewBounds } from "../shared/plugins";
 
 declare global {
@@ -31,6 +32,7 @@ declare global {
         accelerator: string | null,
       ) => Promise<SetHotkeyBindingResult>;
       hidePill: () => void;
+      setPillExpanded: (expanded: boolean) => void;
       showErrorDialog: (title: string, message: string) => Promise<void>;
       getServerPort: () => Promise<number>;
       getServerUrl: () => Promise<string>;
@@ -41,6 +43,7 @@ declare global {
       openLogsFolder: () => Promise<boolean>;
       openExternal: (url: string) => Promise<boolean>;
       cloudPromptSignIn: () => Promise<boolean>;
+      cloudPromptUpgrade: () => Promise<boolean>;
       onHotkeyDown: (callback: () => void) => () => void;
       onHotkeyUp: (callback: () => void) => () => void;
       onPillCancel: (callback: () => void) => () => void;
@@ -123,12 +126,13 @@ declare global {
       // Output mode
       sendOutputModeChanged: (mode: string) => void;
       onOutputModeChanged: (callback: (mode: string) => void) => () => void;
+      // Pill cancel button
+      sendPillCancelModeChanged: (mode: PillCancelMode) => void;
+      onPillCancelModeChanged: (
+        callback: (mode: PillCancelMode) => void,
+      ) => () => void;
       sendAudioDuckingChanged: (enabled: boolean) => void;
       onAudioDuckingChanged: (
-        callback: (enabled: boolean) => void,
-      ) => () => void;
-      sendStreamingAudioChanged: (enabled: boolean) => void;
-      onStreamingAudioChanged: (
         callback: (enabled: boolean) => void,
       ) => () => void;
       sendAudioPlaybackModeChanged: (mode: AudioPlaybackMode) => void;
