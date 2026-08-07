@@ -15,12 +15,23 @@ export function stripTrailingDuplicate(text: string): string {
   return trimmed;
 }
 
+/**
+ * Remove a quote pair that wraps the *whole* string, as models like to add
+ * around a rewrite even when told not to.
+ *
+ * The pair only counts as wrapping when the same quote character doesn't also
+ * appear inside it: text that merely starts and ends with a quote (dialogue
+ * such as `"Hi," she said. "Bye."`, or `'Tis it, isn't it'`) is left alone,
+ * since dropping its outer characters would corrupt the user's text.
+ */
 export function stripWrappingQuotes(text: string): string {
   const stripped = text.trim();
+  const quote = stripped[0];
   if (
     stripped.length >= 2 &&
-    stripped[0] === stripped.at(-1) &&
-    (stripped[0] === '"' || stripped[0] === "'")
+    (quote === '"' || quote === "'") &&
+    stripped.at(-1) === quote &&
+    !stripped.slice(1, -1).includes(quote)
   ) {
     return stripped.slice(1, -1).trim();
   }
