@@ -43,19 +43,22 @@ function buildPromptText(terms: string[]): string | null {
   let list = terms.join(", ");
   const budget = PROMPT_CHAR_BUDGET - "Terms: ".length;
   if (list.length > budget) {
-    const trimmed: string[] = [];
+    let trimmed = "";
     for (const t of terms) {
-      const next = trimmed.length === 0 ? t : `${trimmed.join(", ")}, ${t}`;
-      if (next.length > budget) break;
-      trimmed.push(t);
+      const next = trimmed ? `${trimmed}, ${t}` : t;
+      // Terms arrive longest-first (see `loadVocabularyEntries`), so a term
+      // that doesn't fit says nothing about the shorter ones after it — skip
+      // it and keep packing instead of dropping the rest of the vocabulary.
+      if (next.length > budget) continue;
+      trimmed = next;
     }
-    list = trimmed.join(", ");
+    list = trimmed;
   }
   if (!list) return null;
   return `Terms: ${list}.`.slice(0, PROMPT_CHAR_BUDGET);
 }
 
-function expandNova2Keywords(terms: string[]): string[] {
+function expandNova2Keywords(terms: string[], max: number): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const phrase of terms) {
@@ -66,7 +69,7 @@ function expandNova2Keywords(terms: string[]): string[] {
       if (seen.has(key)) continue;
       seen.add(key);
       out.push(w);
-      if (out.length >= DEEPGRAM_KEYTERM_MAX) return out;
+      if (out.length >= max) return out;
     }
   }
   return out;
@@ -145,7 +148,10 @@ export function buildAsrVocabularyBias(
         const max = streaming
           ? DEEPGRAM_STREAMING_KEYTERM_MAX
           : DEEPGRAM_KEYTERM_MAX;
-        const keywords = expandNova2Keywords(capTerms(capped, max));
+        // Cap the expanded words, not just the phrases: one phrase can expand
+        // into several `keywords` query params, and on the streaming path they
+        // all ride in the WebSocket handshake URL.
+        const keywords = expandNova2Keywords(capTerms(capped, max), max);
         return keywords.length > 0
           ? { kind: "deepgram-keywords", terms: keywords }
           : null;

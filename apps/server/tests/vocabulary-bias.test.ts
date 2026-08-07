@@ -64,6 +64,22 @@ describe("buildAsrVocabularyBias", () => {
       }
     });
 
+    it("keeps packing shorter terms after a long one overflows the budget", () => {
+      // Vocabulary rows arrive longest-first (loadVocabularyEntries orders by
+      // length DESC), so bailing out at the first term that doesn't fit drops
+      // every shorter term behind it.
+      const bias = buildAsrVocabularyBias("openai", "whisper-1", [
+        "x".repeat(500),
+        "y".repeat(500),
+        "Kubernetes",
+      ]);
+      expect(bias?.kind).toBe("prompt");
+      if (bias?.kind === "prompt") {
+        expect(bias.text).toContain("Kubernetes");
+        expect(bias.text.length).toBeLessThanOrEqual(900);
+      }
+    });
+
     it("strips provider prefix from model id", () => {
       const bias = buildAsrVocabularyBias(
         "local-whisper",
@@ -125,6 +141,20 @@ describe("buildAsrVocabularyBias", () => {
         kind: "deepgram-keywords",
         terms: ["account", "number", "TypeScript"],
       });
+    });
+
+    it("caps nova-2 streaming keywords at 25 expanded words", () => {
+      // Each keyword becomes its own query param in the streaming handshake
+      // URL, so multi-word phrases must be capped after expansion.
+      const phrases = Array.from(
+        { length: 40 },
+        (_, i) => `phrase${i} extra${i} more${i}`,
+      );
+      const bias = buildAsrVocabularyBias("deepgram", "nova-2", phrases, true);
+      expect(bias?.kind).toBe("deepgram-keywords");
+      if (bias?.kind === "deepgram-keywords") {
+        expect(bias.terms).toHaveLength(25);
+      }
     });
 
     it("returns null for unsupported deepgram models", () => {

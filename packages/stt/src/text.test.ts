@@ -3,6 +3,7 @@ import {
   collapseAsrLineBreaks,
   sanitizeTranscriptText,
   stripTrailingDuplicate,
+  stripWrappingQuotes,
 } from "./text.js";
 
 describe("sanitizeTranscriptText", () => {
@@ -20,6 +21,28 @@ describe("sanitizeTranscriptText", () => {
     expect(
       sanitizeTranscriptText("Let's just do a remote Zoom call instead.<fin>"),
     ).toBe("Let's just do a remote Zoom call instead.");
+  });
+});
+
+describe("stripWrappingQuotes", () => {
+  it("strips a quote pair that wraps the whole text", () => {
+    expect(stripWrappingQuotes('"Make it formal."')).toBe("Make it formal.");
+    expect(stripWrappingQuotes("'Make it formal.'")).toBe("Make it formal.");
+  });
+
+  it("leaves dialogue that merely starts and ends with a quote intact", () => {
+    // Regression: the outer characters here belong to two different quoted
+    // spans, so removing them corrupts the text the user gets pasted.
+    expect(stripWrappingQuotes('"Hello," she said. "Come in."')).toBe(
+      '"Hello," she said. "Come in."',
+    );
+    expect(stripWrappingQuotes("'Tis the season, isn't it'")).toBe(
+      "'Tis the season, isn't it'",
+    );
+  });
+
+  it("leaves unquoted text untouched apart from trimming", () => {
+    expect(stripWrappingQuotes("  Make it formal.  ")).toBe("Make it formal.");
   });
 });
 
